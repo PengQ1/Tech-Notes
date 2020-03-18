@@ -1,0 +1,153 @@
+### otool
+
+otool是MacOS特有的命令，基本等价于Linux里的ldd，用于查看目标文件的动态链接库，前提是需要安装Xcode,。
+Mac里的动态链接库的后缀名是.dylib，大致对应于Linux里的.so和Windows里的.dll。
+
+
+```
+Usage: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/otool [-arch arch_type] [-fahlLDtdorSTMRIHGvVcXmqQjCP] [-mcpu=arg] [--version] <object file> ...
+	-f print the fat headers
+	-a print the archive header
+	-h print the mach header
+	-l print the load commands
+	-L print shared libraries used
+	-D print shared library id name
+	-t print the text section (disassemble with -v)
+	-x print all text sections (disassemble with -v)
+	-p <routine name>  start dissassemble from routine name
+	-s <segname> <sectname> print contents of section
+	-d print the data section
+	-o print the Objective-C segment
+	-r print the relocation entries
+	-S print the table of contents of a library (obsolete)
+	-T print the table of contents of a dynamic shared library (obsolete)
+	-M print the module table of a dynamic shared library (obsolete)
+	-R print the reference table of a dynamic shared library (obsolete)
+	-I print the indirect symbol table
+	-H print the two-level hints table (obsolete)
+	-G print the data in code table
+	-v print verbosely (symbolically) when possible
+	-V print disassembled operands symbolically
+	-c print argument strings of a core file
+	-X print no leading addresses or headers
+	-m don't use archive(member) syntax
+	-B force Thumb disassembly (ARM objects only)
+	-q use llvm's disassembler (the default)
+	-Q use otool(1)'s disassembler
+	-mcpu=arg use `arg' as the cpu for disassembly
+	-j print opcode bytes
+	-P print the info plist section as strings
+	-C print linker optimization hints
+	--version print the version of /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/otool
+```
+
+查看otool命令所在的文件夹：
+```
+ls -l /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ | grep "otool"
+-rwxr-xr-x  1 root  wheel     40672 Dec 18 14:51 llvm-otool
+lrwxr-xr-x  1 root  wheel        10 Mar  4 12:40 otool -> llvm-otool
+-rwxr-xr-x  1 root  wheel    659184 Dec 18 14:51 otool-classic
+```
+从这里可以知道otool指向llvm-otool。
+
+#### llvm
+这里对llvm多说两句：
+个人觉得维基百科里的定义很好：“LLVM是一个自由软件项目，它是一种编译器基础设施，以C++写成，包含一系列模块化的编译器组件和工具链，用来开发编译器前端和后端”。你可以理解成llvm就是一个编译器，它由伊利诺伊大学厄巴纳-香槟分校维克拉姆·艾夫（Vikram Adve）与克里斯·拉特纳（Chris Lattner）在2000年开发出来，他们旨在为所有静态及动态语言创造出动态的编译技术。2005年，苹果电脑雇用了克里斯·拉特纳及他的团队为苹果电脑开发应用程序系统，LLVM为现今Mac OS X及iOS开发工具的一部分。
+
+LLVM引发一些人来为许多语言开发新的编译器，其中一个最引发注意的就是Clang，它是一个新的编译器，同时支持C、Objective-C以及C++。主要来自苹果电脑的支持，Clang的目的用以取代GCC系统底下的C/Objective-C编译器，在当代的系统，他较为容易与集成开发环境（IDE）集成，而且对于线程有更好的支持。
+
+Clang几乎是任何一个Apple Developer耳熟能详的东西了。你可以理解成，Clang是llvm的前端，底层是llvm。
+
+#### 常用命令
+
+- otool -L filename 打印出来目标文件用到的所有的动态链接库(.dylib)，并且列出它们的路径、兼容版本号。
+
+```
+otool -L DataOps
+DataOps:
+	@rpath/libmysqlcppconn.7.dylib (compatibility version 7.0.0, current version 7.8.0)
+	/usr/lib/libc++.1.dylib (compatibility version 1.0.0, current version 400.9.4)
+	/usr/lib/libSystem.B.dylib (compatibility version 1.0.0, current version 1252.250.1)
+```
+
+- otool -l filename 把运行过程中load的所有的命令打印出来, 这个命令大致类似于objdump的反汇编功能。
+```
+otool -l DataOps
+DataOps:
+Mach header
+      magic cputype cpusubtype  caps    filetype ncmds sizeofcmds      flags
+ 0xfeedfacf 16777223          3  0x80           2    17       1640 0x00218085
+Load command 0
+      cmd LC_SEGMENT_64
+  cmdsize 72
+  segname __PAGEZERO
+   vmaddr 0x0000000000000000
+   vmsize 0x0000000100000000
+  fileoff 0
+ filesize 0
+  maxprot 0x00000000
+ initprot 0x00000000
+   nsects 0
+    flags 0x0
+Load command 1
+      cmd LC_SEGMENT_64
+  cmdsize 632
+  segname __TEXT
+   vmaddr 0x0000000100000000
+   vmsize 0x0000000000003000
+  fileoff 0
+ filesize 12288
+  maxprot 0x00000005
+ initprot 0x00000005
+   nsects 7
+    flags 0x0
+    
+    ...
+    
+    Load command 14
+          cmd LC_LOAD_DYLIB
+      cmdsize 56
+         name /usr/lib/libSystem.B.dylib (offset 24)
+   time stamp 2 Thu Jan  1 08:00:02 1970
+      current version 1252.250.1
+compatibility version 1.0.0
+Load command 15
+      cmd LC_FUNCTION_STARTS
+  cmdsize 16
+  dataoff 18912
+ datasize 72
+Load command 16
+      cmd LC_DATA_IN_CODE
+  cmdsize 16
+  dataoff 18984
+ datasize 0
+```
+
+
+
+
+### install_name_tool
+
+```
+Usage: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/install_name_tool [-change old new] ... [-rpath old new] ... [-add_rpath new] ... [-delete_rpath old] ... [-id name] input
+```
+
+Apple有多种定位共享库的方法：
+
+- @executable_path: 相对于主可执行文件
+- @loader_path: 相对于引用二进制文件
+- @rpath: 相对于任何路径列表。
+
+
+@rpath 是最近添加的，在 OS X 10.5中引入。
+
+install_name_tool可以用来修改二进制里面存储的动态链接库的搜索路径，以下是几个例子：
+
+- 添加搜索路径
+```
+install_name_tool -add_rpath @loader_path/.. myexecutable
+```
+- 修改搜索路径，change紧跟的路径必须是已经存在的路径
+```
+install_name_tool -change builddir/lib_this.dylib @rpath/Libraries/lib_this.dylib myexecutable
+```
